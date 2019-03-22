@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-'''Create compressed, encrypted, signed extract file with Federal CyHy data for integration with the Weathermap project.
+'''Gets NS, A, MX, and SOA records for a domain and prints them to stdout or imports them to mongo
 
 Usage:
   COMMAND_NAME (-d DOMAIN | -f CSV_FILE) [--mongo_config MONGO_CONFIG]
@@ -15,23 +15,15 @@ Options:
 
 '''
 
-import dns.resolver
-import dns.ttl
-import dns.zone
-import dns.query
-import re
-from pprint import pprint
-import dns.name
-import dns.message
-import dns.query
-import dns.flags
-import dns.exception
-import socket
 from docopt import docopt
-import yaml
-import datetime
 from pymongo import MongoClient
 from tqdm import tqdm
+import datetime
+import dns.name
+import dns.resolver
+import re
+import socket
+import yaml
 
 record_types = ['NS', 'A', 'MX', 'SOA']
 DB_CONFIG_FILE = 'mongo_config.yaml'
@@ -54,24 +46,22 @@ def dns_query(domain, mongo_config):
                 if mongo_config:
                     ns_dns_reply_to_mongo(domain, reply, answer, mongo_config)
                 else:
-                    print('Domain {} {} record(s) are {} with ttl {}'.format(domain, record, [str(response) for response in reply], answer.ttl))
+                    print('Domain {} {} record(s) returned {} with ttl {}'.format(domain, record, [str(response) for response in reply], answer.ttl))
             elif record == 'SOA':
                 if mongo_config:
                     soa_dns_reply_to_mongo(domain, reply, mongo_config)
                 else:
-                    print('Domain {} {} record(s) are {}'.format(domain, record, [str(response) for response in reply]))
+                    print('Domain {} {} record(s) returned {}'.format(domain, record, [str(response) for response in reply]))
             elif record == 'A':
                 if mongo_config:
                     a_dns_reply_to_mongo(domain, reply, mongo_config)
                 else:
-                    print('Domain {} {} record(s) are {} with ttl {}'.format(domain, record, [str(response) for response in reply], reply.ttl))
+                    print('Domain {} {} record(s) returned {}'.format(domain, record, [str(response) for response in reply]))
             elif record == 'MX':
                 if mongo_config:
                     mx_dns_reply_to_mongo(domain, reply, mongo_config)
                 else:
-                    print('Domain {} {} record(s) are {} '.format(domain, record, [str(response) for response in reply]))
-        # except (dns.resolver.NoAnswer, dns.exception.Timeout) as e:
-        #     print('Error occured: ' + str(e))
+                    print('Domain {} {} record(s) returned {} '.format(domain, record, [str(response) for response in reply]))
         except Exception as e:
             print('An error occured on domain: {} \nFor record type: {}\n Error: {}'.format(domain, record,e))
 
@@ -88,7 +78,7 @@ def ns_dns_reply_to_mongo(domain, reply, name_server_answer, mongo_config):
                           }}, upsert=True)
 
 def a_dns_reply_to_mongo(domain, reply, mongo_config):
-    db = db_from_config(mongo_config)#db_config_file)  # set up database connection
+    db = db_from_config(mongo_config)  # set up database connection
     # A record
     db.a_records.update_one({'domain': domain,
                          'latest': True},
@@ -128,7 +118,7 @@ def soa_dns_reply_to_mongo(domain, reply, mongo_config):
                                'insert_date': datetime.datetime.now().isoformat(),
                                'latest': True
                                }}, upsert=True)
-                               
+
 def db_from_config(config_filename):
     with open(config_filename, 'r') as stream:
         config = yaml.load(stream)
@@ -147,8 +137,6 @@ def main():
     global __doc__
     __doc__ = re.sub('COMMAND_NAME', __file__, __doc__)
     args = docopt(__doc__, version='v0.0.1')
-    print(args['--mongo_config'])
-    print(args)
     if args['--domain']:
         dns_query(args['--domain'].lower(), args['MONGO_CONFIG'])
     elif args['-f']:
