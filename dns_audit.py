@@ -128,7 +128,7 @@ def soa_dns_reply_to_mongo(domain, reply, mongo_config):
                                'insert_date': datetime.datetime.now().isoformat(),
                                'latest': True
                                }}, upsert=True)
-
+                               
 def db_from_config(config_filename):
     with open(config_filename, 'r') as stream:
         config = yaml.load(stream)
@@ -153,12 +153,11 @@ def main():
         dns_query(args['--domain'].lower(), args['MONGO_CONFIG'])
     elif args['-f']:
         with open(args['-f']) as file:
-            with tqdm(total=len(file.read().split())) as pbar:
-            # print(file.read().split())
+            with tqdm(total=len(file.read().split())) as pbar:                  # Set up progress bar
                 file.seek(0)
                 for domain in file:
                     dns_query(domain.strip().lower(), args['MONGO_CONFIG'])
-                    pbar.update(1)
+                    pbar.update(1)                                              # Increment progress bar
 
 
 if __name__=='__main__':
